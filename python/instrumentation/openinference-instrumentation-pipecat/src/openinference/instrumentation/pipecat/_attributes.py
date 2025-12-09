@@ -57,6 +57,7 @@ __all__ = [
     "extract_attributes_from_frame",
     "extract_service_attributes",
     "detect_service_type",
+    "detect_service_type_from_class_string",
     "detect_provider_from_service",
 ]
 
@@ -128,6 +129,27 @@ def detect_service_type(service: FrameProcessor) -> str:
         if service_type:
             return service_type
     return "unknown"
+
+
+def detect_service_type_from_class_string(service: str) -> str:
+    """
+    Detect the type of service from string. MetricsFrames use a string
+    to identify processor, so we use this method to determine service type
+
+    Args:
+        service: str, ie `GoogleLLMService`
+
+    Returns:
+        Service type
+    """
+    service_type = "unknown"
+    if "STTService" in service:
+        service_type = "stt"
+    elif "LLMService" in service:
+        service_type = "llm"
+    elif "TTSService" in service:
+        service_type = "tts"
+    return service_type
 
 
 def detect_provider_from_service(service: FrameProcessor) -> str:
@@ -756,7 +778,9 @@ class LLMServiceAttributeExtractor(ServiceAttributeExtractor):
         SpanAttributes.OPENINFERENCE_SPAN_KIND: lambda service: (
             OpenInferenceSpanKindValues.LLM.value
         ),
-        SpanAttributes.LLM_MODEL_NAME: lambda service: get_model_name(service),
+        SpanAttributes.LLM_MODEL_NAME: lambda service: getattr(service, "_full_model_name", None)
+        or getattr(service, "model_name", None)
+        or getattr(service, "model", None),
         SpanAttributes.LLM_PROVIDER: lambda service: detect_provider_from_service(service),
         # GenAI semantic conventions (dual attributes)
         "gen_ai.system": lambda service: detect_provider_from_service(service),
